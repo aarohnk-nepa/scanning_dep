@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        UV_EXTRA_ARGS: "${UV_EXTRA_ARGS:-}"
+    image: outbound-vision:local
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./dataset:/app/dataset
+      - ./.env:/app/.env:ro
+    # Headroom for multiprocessing primitives shared with the dataset worker process.
+    shm_size: "2gb"
+    # tini forwards SIGTERM so the dataset worker can drain on shutdown.
+    init: true
+    stop_grace_period: 40s
+    restart: unless-stopped
+    # Linux: lets the container reach a Gemma server on the host via host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
